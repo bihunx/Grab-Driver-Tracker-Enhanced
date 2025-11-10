@@ -1,0 +1,1616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Grab Driver Tracker — Enhanced</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --grab-green:#00b14f;--grab-dark:#1a1a1a;--grab-light:#f7f7f7;
+  --card-bg:#fff;--text:#1a1a1a;--muted:#666;--radius:12px;--shadow:0 6px 20px rgba(0,0,0,.08);
+  --warning:#f59e0b;--danger:#dc2626;--success:#10b981;--info:#3b82f6;
+}
+*{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,-apple-system,Arial;}
+body{margin:0;background:var(--grab-light);color:var(--text);padding-bottom:96px;}
+.container{max-width:520px;margin:0 auto;min-height:100vh;background:var(--card-bg);}
+
+/* top */
+.top-bar{position:sticky;top:0;background:var(--grab-dark);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:1000}
+.top-bar .running{color:#86efac;font-weight:600}
+.top-bar .stats{font-size:12px;display:flex;gap:12px;margin-top:4px}
+.top-bar .stats span{background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px}
+
+/* card / buttons */
+.card{margin:16px;padding:14px;border-radius:var(--radius);background:var(--card-bg);box-shadow:var(--shadow)}
+.h3{color:var(--grab-green);margin:0 0 10px 0;font-weight:700}
+.btn{background:var(--grab-green);color:#fff;border:0;padding:10px 12px;border-radius:28px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s}
+.btn:hover{opacity:0.9;transform:translateY(-1px)}
+.btn.secondary{background:#fff;color:var(--grab-green);border:1px solid #e5e7eb}
+.btn.full{width:100%;justify-content:center}
+.btn.warning{background:var(--warning)}
+.btn.danger{background:var(--danger)}
+.btn.info{background:var(--info)}
+
+/* day card */
+.day-card{margin:12px 16px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:var(--shadow);transition:all .18s}
+.day-header{padding:12px 14px;background:var(--grab-green);color:#fff;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.day-header.expanded{background:#15803d}
+.day-details{display:none;padding:12px 14px;background:#fff}
+.day-details.show{display:block}
+.input{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e6e6;margin-bottom:8px}
+.input-group{display:flex;gap:8px;margin-bottom:8px}
+.input-group .input{flex:1;margin-bottom:0}
+
+/* progress */
+.progress-container{margin:8px 16px;border-radius:12px;background:#ececec;height:18px;overflow:hidden}
+.progress-bar{height:100%;line-height:18px;color:#fff;text-align:center;transition:width .25s;box-shadow:inset 0 -2px 4px rgba(0,0,0,.12)}
+
+/* summary / tables */
+.summary-box{margin:12px 16px;padding:12px;border-radius:12px;background:#fff;box-shadow:var(--shadow)}
+.tab-row{display:flex;gap:8px;margin:10px 16px}
+.tab-row button{flex:1;padding:8px;border-radius:8px;border:0;background:#f1f5f9;cursor:pointer;transition:all 0.2s}
+.tab-row button.active{background:var(--grab-green);color:#fff}
+.table-wrap{margin:0 16px 24px;overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border:1px solid #e5e7eb;text-align:center;font-size:13px}
+th{background:#f8fafc}
+tr.highlight{background:#f0fdf4}
+
+/* bottom nav */
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;background:#fff;display:flex;justify-content:space-around;padding:8px 0;border-top:1px solid #eee;z-index:1000}
+.nav-item{font-size:12px;color:var(--muted);text-align:center;cursor:pointer;transition:all 0.2s}
+.nav-item.active{color:var(--grab-green)}
+.nav-item i{display:block;margin-bottom:4px}
+
+/* modal */
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;justify-content:center;align-items:center}
+.modal-content{background:#fff;border-radius:var(--radius);padding:20px;width:90%;max-width:400px;max-height:80vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer}
+
+/* stats grid */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 16px}
+.stat-card{padding:12px;border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);text-align:center}
+.stat-value{font-size:20px;font-weight:700;margin:4px 0}
+.stat-label{font-size:12px;color:var(--muted)}
+
+/* notifications */
+.notification{position:fixed;top:20px;right:20px;padding:12px 16px;border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);z-index:3000;display:flex;align-items:center;gap:8px;max-width:300px;transform:translateX(400px);transition:transform 0.3s}
+.notification.show{transform:translateX(0)}
+.notification.success{border-left:4px solid var(--success)}
+.notification.error{border-left:4px solid var(--danger)}
+.notification.warning{border-left:4px solid var(--warning)}
+
+/* filter */
+.filter-bar{display:flex;gap:8px;margin:12px 16px}
+.filter-bar select, .filter-bar input{flex:1;padding:8px;border-radius:8px;border:1px solid #e6e6e6}
+
+/* financial items */
+.financial-item{margin:8px 0;padding:12px;border-radius:var(--radius);background:#fff;box-shadow:var(--shadow);display:flex;justify-content:space-between;align-items:center}
+.financial-item.income{border-left:4px solid var(--success)}
+.financial-item.expense{border-left:4px solid var(--danger)}
+.financial-details{font-size:12px;color:var(--muted)}
+.financial-actions{display:flex;gap:8px}
+.financial-actions button{padding:4px 8px;border-radius:4px;border:none;cursor:pointer;font-size:12px}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="top-bar">
+    <div>
+      <div style="font-weight:700">Grab Driver Tracker</div>
+      <div class="running" style="font-size:12px">Sync mode: two-way</div>
+      <div class="stats" id="topStats">
+        <span id="totalJobs">Jobs: 0</span>
+        <span id="totalEarnings">Earnings: RM0</span>
+        <span id="daysTracked">Days: 0</span>
+      </div>
+    </div>
+    <div style="font-size:12px" id="clock">Just now</div>
+  </div>
+
+  <!-- Job Tracker -->
+  <section id="jobTracker" class="page active">
+    <div class="card">
+      <div class="h3">Daily Job Tracker</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn full" id="addDayBtn"><i class="fas fa-plus"></i> Add New Day</button>
+      </div>
+      
+      <div class="filter-bar">
+        <select id="monthFilter">
+          <option value="">All Months</option>
+        </select>
+        <select id="yearFilter">
+          <option value="">All Years</option>
+        </select>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn secondary" id="backupFromTracker"><i class="fas fa-download"></i> Backup</button>
+        <button class="btn secondary" id="restoreFromTracker"><i class="fas fa-upload"></i> Restore</button>
+        <button class="btn danger" id="resetTrackerBtn"><i class="fas fa-trash"></i> Reset</button>
+      </div>
+    </div>
+
+    <div id="trackerList"></div>
+  </section>
+
+  <!-- Earnings -->
+  <section id="earningPage" class="page" style="display:none">
+    <div class="card">
+      <div class="h3">Daily Earning</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn full" id="updateFromTrackerBtn"><i class="fas fa-sync-alt"></i> Sync Job Count from Tracker</button>
+      </div>
+      
+      <div class="filter-bar">
+        <select id="earningMonthFilter">
+          <option value="">All Months</option>
+        </select>
+        <select id="earningYearFilter">
+          <option value="">All Years</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="stats-grid">
+      <div class="stat-card" style="border-left:4px solid var(--success)">
+        <div class="stat-label">Total Earnings</div>
+        <div class="stat-value" id="totalEarningsValue">RM0</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid var(--info)">
+        <div class="stat-label">Average Daily</div>
+        <div class="stat-value" id="avgDailyEarnings">RM0</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid var(--warning)">
+        <div class="stat-label">Total Expenses</div>
+        <div class="stat-value" id="totalExpenses">RM0</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid var(--grab-green)">
+        <div class="stat-label">Net Income</div>
+        <div class="stat-value" id="netIncome">RM0</div>
+      </div>
+    </div>
+    
+    <div id="earningsList"></div>
+  </section>
+
+  <!-- Target -->
+  <section id="targetPage" class="page" style="display:none">
+    <div class="card">
+      <div class="h3">Target & Float</div>
+      <div class="summary-box">
+        <label>Start Date</label>
+        <input id="targetStart" class="input" type="date">
+        <label>End Date</label>
+        <input id="targetEnd" class="input" type="date">
+        <label>Total Jobs</label>
+        <input id="totalTarget" class="input" type="number" min="0">
+        <label>Weekday Ratio (0 - 1) — weekday weight relative to weekend</label>
+        <input id="weekdayRatio" class="input" type="number" step="0.1" min="0" max="1" value="0.5">
+        <label>Initial Float (RM)</label>
+        <input id="initialFloat" class="input" type="number" step="0.01">
+        <button class="btn full" onclick="setTarget()">Set Target</button>
+      </div>
+
+      <div id="targetSummary" class="summary-box"></div>
+      <div id="floatSummary" class="summary-box"></div>
+      <div id="transferSummary" class="summary-box"></div>
+
+      <div class="tab-row">
+        <button class="active" onclick="showTransactionTab('daily')">Daily</button>
+        <button onclick="showTransactionTab('weekly')">Weekly</button>
+        <button onclick="showTransactionTab('monthly')">Monthly</button>
+      </div>
+
+      <div id="dailyTab" class="table-wrap"></div>
+      <div id="weeklyTab" class="table-wrap" style="display:none"></div>
+      <div id="monthlyTab" class="table-wrap" style="display:none"></div>
+
+      <div style="margin:12px;display:flex;gap:8px">
+        <button class="btn secondary" onclick="backupData()"><i class="fas fa-download"></i> Backup All</button>
+        <button class="btn secondary" onclick="restoreData()"><i class="fas fa-upload"></i> Restore All</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Financial -->
+  <section id="financialPage" class="page" style="display:none">
+    <div class="card">
+      <div class="h3">Financial Management</div>
+      <p style="margin:0 0 12px 0;color:var(--muted);font-size:14px">Track additional income and expenses for accurate profit/loss calculation</p>
+      
+      <div class="input-group">
+        <button class="btn secondary" onclick="openAddFinancialModal('income')"><i class="fas fa-plus"></i> Add Income</button>
+        <button class="btn secondary" onclick="openAddFinancialModal('expense')"><i class="fas fa-plus"></i> Add Expense</button>
+      </div>
+    </div>
+    
+    <div class="stats-grid">
+      <div class="stat-card" style="border-left:4px solid var(--success)">
+        <div class="stat-label">Additional Income</div>
+        <div class="stat-value" id="totalAdditionalIncome">RM0</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid var(--danger)">
+        <div class="stat-label">Additional Expenses</div>
+        <div class="stat-value" id="totalAdditionalExpenses">RM0</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid var(--info)">
+        <div class="stat-label">Net Additional</div>
+        <div class="stat-value" id="netAdditional">RM0</div>
+      </div>
+      <div class="stat-card" style="border-left:4px solid var(--grab-green)">
+        <div class="stat-label">Overall Profit/Loss</div>
+        <div class="stat-value" id="overallProfitLoss">RM0</div>
+      </div>
+    </div>
+    
+    <div class="filter-bar">
+      <select id="financialYearFilter">
+        <option value="">All Years</option>
+      </select>
+      <select id="financialTypeFilter">
+        <option value="">All Types</option>
+        <option value="income">Income Only</option>
+        <option value="expense">Expense Only</option>
+      </select>
+    </div>
+    
+    <div class="card">
+      <div class="h3">Financial Items</div>
+      <div id="financialItemsList"></div>
+    </div>
+    
+    <div class="card">
+      <div class="h3">Financial Summary</div>
+      <div class="tab-row">
+        <button class="active" onclick="showFinancialSummaryTab('monthly')">Monthly</button>
+        <button onclick="showFinancialSummaryTab('yearly')">Yearly</button>
+      </div>
+      
+      <div id="monthlyFinancialSummary" class="table-wrap"></div>
+      <div id="yearlyFinancialSummary" class="table-wrap" style="display:none"></div>
+    </div>
+  </section>
+
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-tab="jobTracker"><i class="fas fa-list"></i>Tracker</div>
+    <div class="nav-item" data-tab="earningPage"><i class="fas fa-wallet"></i>Earning</div>
+    <div class="nav-item" data-tab="targetPage"><i class="fas fa-bullseye"></i>Target</div>
+    <div class="nav-item" data-tab="financialPage"><i class="fas fa-chart-line"></i>Financial</div>
+  </nav>
+</div>
+
+<!-- Modal for adding/editing days -->
+<div id="dayModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalTitle">Add New Day</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div id="modalBody">
+      <!-- Content will be inserted here -->
+    </div>
+  </div>
+</div>
+
+<!-- Modal for adding financial items -->
+<div id="financialModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="financialModalTitle">Add Financial Item</h3>
+      <button class="modal-close" onclick="closeFinancialModal()">&times;</button>
+    </div>
+    <div id="financialModalBody">
+      <!-- Content will be inserted here -->
+    </div>
+  </div>
+</div>
+
+<!-- Notification container -->
+<div id="notificationContainer"></div>
+
+<script>
+/* ------------------ Data & persistence ------------------ */
+let trackerData = [];     // array of {date, job, jobTarget, expanded}
+let earningsData = [];    // array of {date, job, earning, petrol, insurance, commission, deduction, transfer, floatAdd, expanded}
+let targetData = {};      // {start, end, total, weekdayRatio}
+let floatData = {float:0}; // {float}
+let financialData = [];   // array of {id, type, category, description, amount, date, recurring, recurringType}
+let appSettings = {notifications: true, autoBackup: false};
+
+function saveData(){
+  localStorage.setItem('trackerData', JSON.stringify(trackerData));
+  localStorage.setItem('earningsData', JSON.stringify(earningsData));
+  localStorage.setItem('targetData', JSON.stringify(targetData));
+  localStorage.setItem('floatData', JSON.stringify(floatData));
+  localStorage.setItem('financialData', JSON.stringify(financialData));
+  localStorage.setItem('appSettings', JSON.stringify(appSettings));
+}
+
+function loadData(){
+  trackerData = JSON.parse(localStorage.getItem('trackerData') || '[]');
+  earningsData = JSON.parse(localStorage.getItem('earningsData') || '[]');
+  targetData = JSON.parse(localStorage.getItem('targetData') || '{}');
+  floatData = JSON.parse(localStorage.getItem('floatData') || '{"float":0}');
+  financialData = JSON.parse(localStorage.getItem('financialData') || '[]');
+  appSettings = JSON.parse(localStorage.getItem('appSettings') || '{"notifications":true,"autoBackup":false}');
+}
+loadData();
+
+/* ------------------ Utilities ------------------ */
+function formatDateISO(d){ return new Date(d).toISOString().split('T')[0]; }
+
+function getEarningByDate(date){
+  return earningsData.find(e=>e.date===date);
+}
+
+function ensureEarningFor(date){
+  let e = getEarningByDate(date);
+  if(!e){
+    e = { date, job:0, earning:0, petrol:0, insurance:0, commission:0, deduction:0, transfer:0, floatAdd:0, expanded:false };
+    earningsData.push(e);
+  }
+  return e;
+}
+
+function ensureTrackerFor(date){
+  let t = trackerData.find(x=>x.date===date);
+  if(!t){
+    t = { date, job:0, jobTarget:0, expanded:false };
+    trackerData.push(t);
+  }
+  return t;
+}
+
+function sortDataChrono(){
+  trackerData.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  earningsData.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  financialData.sort((a,b)=>new Date(b.date)-new Date(a.date)); // Most recent first
+}
+
+/* Keep both lists aligned in order and presence (tracker is source of dates) */
+function alignEarningsToTracker(){
+  // ensure every tracker date has earnings entry
+  trackerData.forEach(t=>{
+    ensureEarningFor(t.date);
+  });
+  // remove earnings that are not in tracker (optional: keep them? we'll drop extras)
+  earningsData = earningsData.filter(e=> trackerData.some(t=>t.date===e.date));
+  // reorder earnings to follow tracker order
+  earningsData = trackerData.map(t => earningsData.find(e => e.date===t.date) || ensureEarningFor(t.date));
+}
+
+/* ------------------ Notification System ------------------ */
+function showNotification(message, type = 'success', duration = 3000) {
+  if (!appSettings.notifications) return;
+  
+  const container = document.getElementById('notificationContainer');
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  
+  let icon = 'fa-check-circle';
+  if (type === 'error') icon = 'fa-exclamation-circle';
+  if (type === 'warning') icon = 'fa-exclamation-triangle';
+  
+  notification.innerHTML = `
+    <i class="fas ${icon}"></i>
+    <span>${message}</span>
+  `;
+  
+  container.appendChild(notification);
+  
+  // Show notification
+  setTimeout(() => {
+    notification.classList.add('show');
+  }, 10);
+  
+  // Hide after duration
+  setTimeout(() => {
+    notification.classList.remove('show');
+    setTimeout(() => {
+      container.removeChild(notification);
+    }, 300);
+  }, duration);
+}
+
+/* ------------------ Modal System ------------------ */
+function openModal(title, content) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = content;
+  document.getElementById('dayModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('dayModal').style.display = 'none';
+}
+
+function openFinancialModal(title, content) {
+  document.getElementById('financialModalTitle').textContent = title;
+  document.getElementById('financialModalBody').innerHTML = content;
+  document.getElementById('financialModal').style.display = 'flex';
+}
+
+function closeFinancialModal() {
+  document.getElementById('financialModal').style.display = 'none';
+}
+
+/* ------------------ Renderers ------------------ */
+function renderAll(){
+  distributeTargets();
+  sortDataChrono();
+  alignEarningsToTracker();
+  renderTracker();
+  renderEarnings();
+  renderTargetSummary();
+  renderFloatSummary();
+  renderTransferSummary();
+  renderTransactionTabs();
+  renderFinancialPage();
+  updateTopStats();
+  updateEarningsStats();
+  updateFilterOptions();
+  saveData();
+}
+
+/* Update top stats */
+function updateTopStats() {
+  const totalJobs = trackerData.reduce((sum, day) => sum + (day.job || 0), 0);
+  const totalEarnings = earningsData.reduce((sum, day) => sum + (day.earning || 0), 0);
+  
+  document.getElementById('totalJobs').textContent = `Jobs: ${totalJobs}`;
+  document.getElementById('totalEarnings').textContent = `Earnings: RM${totalEarnings.toFixed(2)}`;
+  document.getElementById('daysTracked').textContent = `Days: ${trackerData.length}`;
+}
+
+/* Update earnings stats */
+function updateEarningsStats() {
+  const totalEarnings = earningsData.reduce((sum, day) => sum + (day.earning || 0), 0);
+  const totalExpenses = earningsData.reduce((sum, day) => {
+    return sum + ((day.petrol || 0) + (day.insurance || 0) + (day.commission || 0) + (day.deduction || 0));
+  }, 0);
+  const netIncome = totalEarnings - totalExpenses;
+  const avgDaily = trackerData.length > 0 ? netIncome / trackerData.length : 0;
+  
+  document.getElementById('totalEarningsValue').textContent = `RM${totalEarnings.toFixed(2)}`;
+  document.getElementById('totalExpenses').textContent = `RM${totalExpenses.toFixed(2)}`;
+  document.getElementById('netIncome').textContent = `RM${netIncome.toFixed(2)}`;
+  document.getElementById('avgDailyEarnings').textContent = `RM${avgDaily.toFixed(2)}`;
+}
+
+/* Update filter options */
+function updateFilterOptions() {
+  // Get unique months and years from tracker data
+  const months = [...new Set(trackerData.map(d => {
+    const date = new Date(d.date);
+    return `${date.getFullYear()}-${date.getMonth() + 1}`;
+  }))].sort().reverse();
+  
+  const years = [...new Set(trackerData.map(d => {
+    return new Date(d.date).getFullYear();
+  }))].sort((a, b) => b - a);
+  
+  // Update month filter
+  const monthFilter = document.getElementById('monthFilter');
+  const currentMonthValue = monthFilter.value;
+  monthFilter.innerHTML = '<option value="">All Months</option>';
+  months.forEach(m => {
+    const [year, month] = m.split('-');
+    const monthName = new Date(year, month-1).toLocaleString('default', { month: 'long' });
+    monthFilter.innerHTML += `<option value="${m}">${monthName} ${year}</option>`;
+  });
+  if (currentMonthValue) monthFilter.value = currentMonthValue;
+  
+  // Update year filter
+  const yearFilter = document.getElementById('yearFilter');
+  const currentYearValue = yearFilter.value;
+  yearFilter.innerHTML = '<option value="">All Years</option>';
+  years.forEach(y => {
+    yearFilter.innerHTML += `<option value="${y}">${y}</option>`;
+  });
+  if (currentYearValue) yearFilter.value = currentYearValue;
+  
+  // Update earning filters
+  const earningMonthFilter = document.getElementById('earningMonthFilter');
+  const earningYearFilter = document.getElementById('earningYearFilter');
+  earningMonthFilter.innerHTML = monthFilter.innerHTML;
+  earningYearFilter.innerHTML = yearFilter.innerHTML;
+  
+  // Update financial year filter
+  const financialYears = [...new Set(financialData.map(f => new Date(f.date).getFullYear()))].sort((a, b) => b - a);
+  const financialYearFilter = document.getElementById('financialYearFilter');
+  const currentFinancialYearValue = financialYearFilter.value;
+  financialYearFilter.innerHTML = '<option value="">All Years</option>';
+  financialYears.forEach(y => {
+    financialYearFilter.innerHTML += `<option value="${y}">${y}</option>`;
+  });
+  if (currentFinancialYearValue) financialYearFilter.value = currentFinancialYearValue;
+}
+
+/* ------------------ Tracker Functions ------------------ */
+function renderTracker(){
+  const list = document.getElementById('trackerList'); 
+  list.innerHTML='';
+  
+  // Apply filters
+  const monthFilter = document.getElementById('monthFilter').value;
+  const yearFilter = document.getElementById('yearFilter').value;
+  
+  let filteredData = trackerData;
+  if (monthFilter) {
+    filteredData = filteredData.filter(d => {
+      const date = new Date(d.date);
+      return `${date.getFullYear()}-${date.getMonth() + 1}` === monthFilter;
+    });
+  }
+  if (yearFilter) {
+    filteredData = filteredData.filter(d => {
+      return new Date(d.date).getFullYear().toString() === yearFilter;
+    });
+  }
+  
+  if (filteredData.length === 0) {
+    list.innerHTML = '<div class="card" style="text-align:center;color:var(--muted)">No data found for selected filters</div>';
+    return;
+  }
+  
+  filteredData.forEach((t, idx) => {
+    const prog = t.jobTarget && t.jobTarget>0 ? Math.min(Math.round((t.job / t.jobTarget)*100), 100) : 0;
+    const color = prog>=100 ? 'var(--success)' : (prog>=80 ? 'var(--warning)' : 'var(--danger)');
+    const card = document.createElement('div'); 
+    card.className='day-card';
+    card.innerHTML = `
+      <div class="day-header ${t.expanded ? 'expanded':''}">
+        <div>${t.date}</div>
+        <div>Total: ${t.job} / ${t.jobTarget} (${prog}%)</div>
+      </div>
+      <div class="progress-container"><div class="progress-bar" style="width:${prog}%;background:${color}">${prog}%</div></div>
+      <div class="day-details ${t.expanded ? 'show':''}">
+        <div class="input-group">
+          <button class="btn danger" onclick="deleteDay('${t.date}')"><i class="fas fa-trash"></i> Delete</button>
+        </div>
+        <label>Date</label>
+        <input class="input" type="date" value="${t.date}" onchange="changeDateFromTracker('${t.date}', this.value)">
+        <label>Total Job</label>
+        <input class="input" type="number" value="${t.job}" onchange="changeJobFromTracker('${t.date}', this.value)">
+      </div>
+    `;
+    card.querySelector('.day-header').onclick = ()=> toggleExpandByDate(t.date);
+    list.appendChild(card);
+  });
+}
+
+/* ------------------ Earnings Functions ------------------ */
+function renderEarnings(){
+  const list = document.getElementById('earningsList'); 
+  list.innerHTML='';
+  
+  // Apply filters
+  const monthFilter = document.getElementById('earningMonthFilter').value;
+  const yearFilter = document.getElementById('earningYearFilter').value;
+  
+  let filteredData = earningsData;
+  if (monthFilter) {
+    filteredData = filteredData.filter(d => {
+      const date = new Date(d.date);
+      return `${date.getFullYear()}-${date.getMonth() + 1}` === monthFilter;
+    });
+  }
+  if (yearFilter) {
+    filteredData = filteredData.filter(d => {
+      return new Date(d.date).getFullYear().toString() === yearFilter;
+    });
+  }
+  
+  if (filteredData.length === 0) {
+    list.innerHTML = '<div class="card" style="text-align:center;color:var(--muted)">No data found for selected filters</div>';
+    return;
+  }
+  
+  // render in tracker order (alignEarningsToTracker ensures presence)
+  filteredData.forEach((e) => {
+    const net = (e.earning||0) - ((e.petrol||0) + (e.insurance||0) + (e.commission||0) + (e.deduction||0));
+    const card = document.createElement('div'); 
+    card.className='day-card';
+    card.innerHTML = `
+      <div class="day-header ${e.expanded ? 'expanded':''}">
+        <div>${e.date}</div>
+        <div>Job: ${e.job} | Net: RM${net.toFixed(2)}</div>
+      </div>
+      <div class="day-details ${e.expanded ? 'show':''}">
+        <label>Date</label>
+        <input class="input" type="date" value="${e.date}" onchange="changeDateFromEarning('${e.date}', this.value)">
+        <label>Jobs (syncs to tracker)</label>
+        <input class="input" type="number" value="${e.job}" onchange="changeJobFromEarning('${e.date}', this.value)">
+        <label>Earning</label><input class="input" type="number" step="0.01" value="${e.earning||0}" onchange="changeEarningField('${e.date}','earning',this.value)">
+        <label>Petrol</label><input class="input" type="number" step="0.01" value="${e.petrol||0}" onchange="changeEarningField('${e.date}','petrol',this.value)">
+        <label>Insurance</label><input class="input" type="number" step="0.01" value="${e.insurance||0}" onchange="changeEarningField('${e.date}','insurance',this.value)">
+        <label>Commission</label><input class="input" type="number" step="0.01" value="${e.commission||0}" onchange="changeEarningField('${e.date}','commission',this.value)">
+        <label>Deduction</label><input class="input" type="number" step="0.01" value="${e.deduction||0}" onchange="changeEarningField('${e.date}','deduction',this.value)">
+        <label>Transfer to Account</label><input class="input" type="number" step="0.01" value="${e.transfer||0}" onchange="changeEarningField('${e.date}','transfer',this.value)">
+        <label>Float Top-Up</label><input class="input" type="number" step="0.01" value="${e.floatAdd||0}" onchange="changeEarningField('${e.date}','floatAdd',this.value)">
+      </div>
+    `;
+    card.querySelector('.day-header').onclick = ()=> toggleExpandByDate(e.date);
+    list.appendChild(card);
+  });
+}
+
+/* ------------------ Target Functions ------------------ */
+function setTarget(){
+  const start = document.getElementById('targetStart').value;
+  const end = document.getElementById('targetEnd').value;
+  const total = parseInt(document.getElementById('totalTarget').value) || 0;
+  const ratio = parseFloat(document.getElementById('weekdayRatio').value) || 0.5;
+  const initialFloat = parseFloat(document.getElementById('initialFloat').value) || 0;
+  
+  if(!start || !end || total<=0){
+    showNotification('Please fill all required fields correctly', 'error');
+    return;
+  }
+  
+  targetData = {start, end, total, weekdayRatio:ratio};
+  floatData.float = initialFloat;
+  
+  renderAll();
+  showNotification('Target set successfully');
+}
+
+function distributeTargets(){
+  if(!targetData.start || !targetData.end || !targetData.total) return;
+  const start = new Date(targetData.start);
+  const end = new Date(targetData.end);
+  const total = targetData.total;
+  const ratio = targetData.weekdayRatio || 0.5;
+  
+  // clear existing targets
+  trackerData.forEach(t=>t.jobTarget=0);
+  
+  let days = 0, weekendDays = 0;
+  for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+    const dayOfWeek = d.getDay();
+    if(dayOfWeek===0 || dayOfWeek===6) weekendDays++;
+    days++;
+  }
+  const weekdayDays = days - weekendDays;
+  
+  const weekendWeight = 1;
+  const weekdayWeight = ratio;
+  const totalWeight = weekendDays*weekendWeight + weekdayDays*weekdayWeight;
+  const targetPerWeight = total / totalWeight;
+  
+  for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+    const dateStr = formatDateISO(d);
+    const dayOfWeek = d.getDay();
+    const isWeekend = dayOfWeek===0 || dayOfWeek===6;
+    const weight = isWeekend ? weekendWeight : weekdayWeight;
+    const target = Math.round(targetPerWeight * weight);
+    
+    let t = trackerData.find(x=>x.date===dateStr);
+    if(!t){
+      t = {date:dateStr, job:0, jobTarget:target, expanded:false};
+      trackerData.push(t);
+    } else {
+      t.jobTarget = target;
+    }
+  }
+}
+
+function renderTargetSummary(){
+  const div = document.getElementById('targetSummary');
+  if(!targetData.start){
+    div.innerHTML = '<div style="color:var(--muted);text-align:center">No target set</div>';
+    return;
+  }
+  
+  const start = new Date(targetData.start);
+  const end = new Date(targetData.end);
+  const total = targetData.total;
+  const ratio = targetData.weekdayRatio || 0.5;
+  
+  let days = 0, weekendDays = 0;
+  for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+    const dayOfWeek = d.getDay();
+    if(dayOfWeek===0 || dayOfWeek===6) weekendDays++;
+    days++;
+  }
+  const weekdayDays = days - weekendDays;
+  
+  const weekendWeight = 1;
+  const weekdayWeight = ratio;
+  const totalWeight = weekendDays*weekendWeight + weekdayDays*weekdayWeight;
+  const targetPerWeight = total / totalWeight;
+  const weekendTarget = Math.round(targetPerWeight * weekendWeight);
+  const weekdayTarget = Math.round(targetPerWeight * weekdayWeight);
+  
+  const achieved = trackerData.reduce((sum, t)=>sum + (t.job||0), 0);
+  const progress = Math.min(Math.round((achieved / total)*100), 100);
+  
+  div.innerHTML = `
+    <div style="font-weight:700;margin-bottom:8px">Target Summary</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px">
+      <div>Period: ${targetData.start} to ${targetData.end}</div>
+      <div>Total Target: ${total} jobs</div>
+      <div>Days: ${days} (${weekdayDays} weekday, ${weekendDays} weekend)</div>
+      <div>Achieved: ${achieved} jobs (${progress}%)</div>
+      <div>Weekday Target: ${weekdayTarget} jobs/day</div>
+      <div>Weekend Target: ${weekendTarget} jobs/day</div>
+    </div>
+    <div class="progress-container" style="margin-top:8px">
+      <div class="progress-bar" style="width:${progress}%;background:var(--grab-green)">${progress}%</div>
+    </div>
+  `;
+}
+
+function renderFloatSummary(){
+  const div = document.getElementById('floatSummary');
+  if(floatData.float === undefined) floatData.float = 0;
+  
+  // Calculate current float from transactions
+  let currentFloat = floatData.float || 0;
+  earningsData.forEach(e => {
+    currentFloat += (e.floatAdd || 0);
+    currentFloat -= (e.transfer || 0);
+  });
+  
+  div.innerHTML = `
+    <div style="font-weight:700;margin-bottom:8px">Float Summary</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px">
+      <div>Initial Float: RM${(floatData.float || 0).toFixed(2)}</div>
+      <div>Current Float: RM${currentFloat.toFixed(2)}</div>
+      <div>Total Top-ups: RM${earningsData.reduce((sum, e) => sum + (e.floatAdd || 0), 0).toFixed(2)}</div>
+      <div>Total Transfers: RM${earningsData.reduce((sum, e) => sum + (e.transfer || 0), 0).toFixed(2)}</div>
+    </div>
+  `;
+}
+
+function renderTransferSummary(){
+  const div = document.getElementById('transferSummary');
+  
+  const totalEarnings = earningsData.reduce((sum, e) => sum + (e.earning || 0), 0);
+  const totalExpenses = earningsData.reduce((sum, e) => {
+    return sum + ((e.petrol || 0) + (e.insurance || 0) + (e.commission || 0) + (e.deduction || 0));
+  }, 0);
+  const netIncome = totalEarnings - totalExpenses;
+  const totalTransfers = earningsData.reduce((sum, e) => sum + (e.transfer || 0), 0);
+  const totalFloatAdd = earningsData.reduce((sum, e) => sum + (e.floatAdd || 0), 0);
+  
+  div.innerHTML = `
+    <div style="font-weight:700;margin-bottom:8px">Financial Summary</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px">
+      <div>Total Earnings: RM${totalEarnings.toFixed(2)}</div>
+      <div>Total Expenses: RM${totalExpenses.toFixed(2)}</div>
+      <div>Net Income: RM${netIncome.toFixed(2)}</div>
+      <div>Total Transfers: RM${totalTransfers.toFixed(2)}</div>
+      <div>Total Float Top-ups: RM${totalFloatAdd.toFixed(2)}</div>
+      <div>Balance: RM${(netIncome - totalTransfers - totalFloatAdd).toFixed(2)}</div>
+    </div>
+  `;
+}
+
+function renderTransactionTabs(){
+  renderDailyTab();
+  renderWeeklyTab();
+  renderMonthlyTab();
+}
+
+function renderDailyTab(){
+  const div = document.getElementById('dailyTab');
+  if(earningsData.length === 0){
+    div.innerHTML = '<div style="text-align:center;color:var(--muted)">No data available</div>';
+    return;
+  }
+  
+  let html = '<table><tr><th>Date</th><th>Jobs</th><th>Earnings</th><th>Expenses</th><th>Net</th><th>Transfer</th><th>Float Top-up</th></tr>';
+  
+  earningsData.forEach(e => {
+    const expenses = (e.petrol||0) + (e.insurance||0) + (e.commission||0) + (e.deduction||0);
+    const net = (e.earning||0) - expenses;
+    
+    html += `<tr>
+      <td>${e.date}</td>
+      <td>${e.job}</td>
+      <td>RM${(e.earning||0).toFixed(2)}</td>
+      <td>RM${expenses.toFixed(2)}</td>
+      <td>RM${net.toFixed(2)}</td>
+      <td>RM${(e.transfer||0).toFixed(2)}</td>
+      <td>RM${(e.floatAdd||0).toFixed(2)}</td>
+    </tr>`;
+  });
+  
+  html += '</table>';
+  div.innerHTML = html;
+}
+
+function renderWeeklyTab(){
+  const div = document.getElementById('weeklyTab');
+  
+  // Group by week
+  const weeklyData = {};
+  
+  earningsData.forEach(e => {
+    const date = new Date(e.date);
+    const year = date.getFullYear();
+    const weekNum = getWeekNumber(date);
+    const weekKey = `${year}-W${weekNum}`;
+    
+    if(!weeklyData[weekKey]) {
+      weeklyData[weekKey] = {
+        jobs: 0,
+        earnings: 0,
+        expenses: 0,
+        transfers: 0,
+        floatAdds: 0,
+        startDate: e.date,
+        endDate: e.date
+      };
+    }
+    
+    const week = weeklyData[weekKey];
+    week.jobs += (e.job||0);
+    week.earnings += (e.earning||0);
+    week.expenses += (e.petrol||0) + (e.insurance||0) + (e.commission||0) + (e.deduction||0);
+    week.transfers += (e.transfer||0);
+    week.floatAdds += (e.floatAdd||0);
+    
+    // Update date range
+    if(e.date < week.startDate) week.startDate = e.date;
+    if(e.date > week.endDate) week.endDate = e.date;
+  });
+  
+  if(Object.keys(weeklyData).length === 0){
+    div.innerHTML = '<div style="text-align:center;color:var(--muted)">No data available</div>';
+    return;
+  }
+  
+  let html = '<table><tr><th>Week</th><th>Jobs</th><th>Earnings</th><th>Expenses</th><th>Net</th><th>Transfer</th><th>Float Top-up</th></tr>';
+  
+  Object.keys(weeklyData).sort().reverse().forEach(key => {
+    const week = weeklyData[key];
+    const net = week.earnings - week.expenses;
+    
+    html += `
+      <tr>
+        <td>${week.startDate} to ${week.endDate}</td>
+        <td>${week.jobs}</td>
+        <td>RM${week.earnings.toFixed(2)}</td>
+        <td>RM${week.expenses.toFixed(2)}</td>
+        <td>RM${net.toFixed(2)}</td>
+        <td>RM${week.transfers.toFixed(2)}</td>
+        <td>RM${week.floatAdds.toFixed(2)}</td>
+      </tr>`;
+  });
+  
+  html += '</table>';
+  div.innerHTML = html;
+}
+
+function renderMonthlyTab(){
+  const div = document.getElementById('monthlyTab');
+  
+  // Group by month
+  const monthlyData = {};
+  
+  earningsData.forEach(e => {
+    const date = new Date(e.date);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const monthKey = `${year}-${month}`;
+    
+    if(!monthlyData[monthKey]) {
+      monthlyData[monthKey] = {
+        jobs: 0,
+        earnings: 0,
+        expenses: 0,
+        transfers: 0,
+        floatAdds: 0,
+        monthName: date.toLocaleString('default', { month: 'long', year: 'numeric' })
+      };
+    }
+    
+    const monthData = monthlyData[monthKey];
+    monthData.jobs += (e.job||0);
+    monthData.earnings += (e.earning||0);
+    monthData.expenses += (e.petrol||0) + (e.insurance||0) + (e.commission||0) + (e.deduction||0);
+    monthData.transfers += (e.transfer||0);
+    monthData.floatAdds += (e.floatAdd||0);
+  });
+  
+  if(Object.keys(monthlyData).length === 0){
+    div.innerHTML = '<div style="text-align:center;color:var(--muted)">No data available</div>';
+    return;
+  }
+  
+  let html = '<table><tr><th>Month</th><th>Jobs</th><th>Earnings</th><th>Expenses</th><th>Net</th><th>Transfer</th><th>Float Top-up</th></tr>';
+  
+  Object.keys(monthlyData).sort().reverse().forEach(key => {
+    const month = monthlyData[key];
+    const net = month.earnings - month.expenses;
+    
+    html += `
+      <tr>
+        <td>${month.monthName}</td>
+        <td>${month.jobs}</td>
+        <td>RM${month.earnings.toFixed(2)}</td>
+        <td>RM${month.expenses.toFixed(2)}</td>
+        <td>RM${net.toFixed(2)}</td>
+        <td>RM${month.transfers.toFixed(2)}</td>
+        <td>RM${month.floatAdds.toFixed(2)}</td>
+      </tr>`;
+  });
+  
+  html += '</table>';
+  div.innerHTML = html;
+}
+
+function showTransactionTab(tab){
+  document.querySelectorAll('#targetPage .tab-row button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`#targetPage .tab-row button[onclick="showTransactionTab('${tab}')"]`).classList.add('active');
+  
+  document.getElementById('dailyTab').style.display = tab === 'daily' ? 'block' : 'none';
+  document.getElementById('weeklyTab').style.display = tab === 'weekly' ? 'block' : 'none';
+  document.getElementById('monthlyTab').style.display = tab === 'monthly' ? 'block' : 'none';
+}
+
+// Helper function to get week number
+function getWeekNumber(d) {
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  const weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+  return weekNo;
+}
+
+/* ------------------ Financial Page Functions ------------------ */
+
+function renderFinancialPage() {
+  updateFinancialStats();
+  renderFinancialItems();
+  renderFinancialSummaries();
+}
+
+function updateFinancialStats() {
+  // Calculate additional income and expenses
+  const additionalIncome = financialData
+    .filter(item => item.type === 'income')
+    .reduce((sum, item) => sum + (item.amount || 0), 0);
+    
+  const additionalExpenses = financialData
+    .filter(item => item.type === 'expense')
+    .reduce((sum, item) => sum + (item.amount || 0), 0);
+    
+  const netAdditional = additionalIncome - additionalExpenses;
+  
+  // Calculate overall profit/loss (earnings + additional income - expenses - additional expenses)
+  const totalEarnings = earningsData.reduce((sum, day) => sum + (day.earning || 0), 0);
+  const operationalExpenses = earningsData.reduce((sum, day) => {
+    return sum + ((day.petrol || 0) + (day.insurance || 0) + (day.commission || 0) + (day.deduction || 0));
+  }, 0);
+  
+  const overallProfitLoss = totalEarnings - operationalExpenses + netAdditional;
+  
+  document.getElementById('totalAdditionalIncome').textContent = `RM${additionalIncome.toFixed(2)}`;
+  document.getElementById('totalAdditionalExpenses').textContent = `RM${additionalExpenses.toFixed(2)}`;
+  document.getElementById('netAdditional').textContent = `RM${netAdditional.toFixed(2)}`;
+  document.getElementById('overallProfitLoss').textContent = `RM${overallProfitLoss.toFixed(2)}`;
+  
+  // Color code the overall profit/loss
+  const overallElement = document.getElementById('overallProfitLoss');
+  if (overallProfitLoss > 0) {
+    overallElement.style.color = 'var(--success)';
+  } else if (overallProfitLoss < 0) {
+    overallElement.style.color = 'var(--danger)';
+  } else {
+    overallElement.style.color = 'var(--text)';
+  }
+}
+
+function renderFinancialItems() {
+  const list = document.getElementById('financialItemsList');
+  list.innerHTML = '';
+  
+  // Apply filters
+  const yearFilter = document.getElementById('financialYearFilter').value;
+  const typeFilter = document.getElementById('financialTypeFilter').value;
+  
+  let filteredData = financialData;
+  
+  if (yearFilter) {
+    filteredData = filteredData.filter(item => new Date(item.date).getFullYear().toString() === yearFilter);
+  }
+  
+  if (typeFilter) {
+    filteredData = filteredData.filter(item => item.type === typeFilter);
+  }
+  
+  if (filteredData.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">No financial items found</div>';
+    return;
+  }
+  
+  filteredData.forEach(item => {
+    const itemElement = document.createElement('div');
+    itemElement.className = `financial-item ${item.type}`;
+    
+    const recurringText = item.recurring ? `<span class="financial-details">(${item.recurringType})</span>` : '';
+    
+    itemElement.innerHTML = `
+      <div>
+        <div style="font-weight:bold">${item.description}</div>
+        <div class="financial-details">${item.category} • ${item.date} ${recurringText}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-weight:bold;font-size:16px">RM${item.amount.toFixed(2)}</div>
+        <div class="financial-actions">
+          <button class="btn secondary" onclick="editFinancialItem('${item.id}')" style="padding:4px 8px"><i class="fas fa-edit"></i></button>
+          <button class="btn danger" onclick="deleteFinancialItem('${item.id}')" style="padding:4px 8px"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    `;
+    
+    list.appendChild(itemElement);
+  });
+}
+
+function renderFinancialSummaries() {
+  renderMonthlyFinancialSummary();
+  renderYearlyFinancialSummary();
+}
+
+function renderMonthlyFinancialSummary() {
+  const container = document.getElementById('monthlyFinancialSummary');
+  
+  // Group by month
+  const monthlyData = {};
+  
+  financialData.forEach(item => {
+    const date = new Date(item.date);
+    const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`;
+    const monthName = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+    
+    if (!monthlyData[monthKey]) {
+      monthlyData[monthKey] = {
+        month: monthName,
+        income: 0,
+        expense: 0,
+        net: 0
+      };
+    }
+    
+    if (item.type === 'income') {
+      monthlyData[monthKey].income += item.amount;
+    } else {
+      monthlyData[monthKey].expense += item.amount;
+    }
+    
+    monthlyData[monthKey].net = monthlyData[monthKey].income - monthlyData[monthKey].expense;
+  });
+  
+  if (Object.keys(monthlyData).length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">No financial data available</div>';
+    return;
+  }
+  
+  let html = '<table><tr><th>Month</th><th>Income</th><th>Expenses</th><th>Net</th></tr>';
+  
+  Object.keys(monthlyData).sort().reverse().forEach(key => {
+    const data = monthlyData[key];
+    const netClass = data.net >= 0 ? 'style="color:var(--success)"' : 'style="color:var(--danger)"';
+    
+    html += `
+      <tr>
+        <td>${data.month}</td>
+        <td>RM${data.income.toFixed(2)}</td>
+        <td>RM${data.expense.toFixed(2)}</td>
+        <td ${netClass}>RM${data.net.toFixed(2)}</td>
+      </tr>
+    `;
+  });
+  
+  html += '</table>';
+  container.innerHTML = html;
+}
+
+function renderYearlyFinancialSummary() {
+  const container = document.getElementById('yearlyFinancialSummary');
+  
+  // Group by year
+  const yearlyData = {};
+  
+  financialData.forEach(item => {
+    const year = new Date(item.date).getFullYear();
+    
+    if (!yearlyData[year]) {
+      yearlyData[year] = {
+        year: year,
+        income: 0,
+        expense: 0,
+        net: 0
+      };
+    }
+    
+    if (item.type === 'income') {
+      yearlyData[year].income += item.amount;
+    } else {
+      yearlyData[year].expense += item.amount;
+    }
+    
+    yearlyData[year].net = yearlyData[year].income - yearlyData[year].expense;
+  });
+  
+  if (Object.keys(yearlyData).length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">No financial data available</div>';
+    return;
+  }
+  
+  let html = '<table><tr><th>Year</th><th>Income</th><th>Expenses</th><th>Net</th></tr>';
+  
+  Object.keys(yearlyData).sort().reverse().forEach(key => {
+    const data = yearlyData[key];
+    const netClass = data.net >= 0 ? 'style="color:var(--success)"' : 'style="color:var(--danger)"';
+    
+    html += `
+      <tr>
+        <td>${data.year}</td>
+        <td>RM${data.income.toFixed(2)}</td>
+        <td>RM${data.expense.toFixed(2)}</td>
+        <td ${netClass}>RM${data.net.toFixed(2)}</td>
+      </tr>
+    `;
+  });
+  
+  html += '</table>';
+  container.innerHTML = html;
+}
+
+function openAddFinancialModal(type) {
+  const title = type === 'income' ? 'Add Additional Income' : 'Add Additional Expense';
+  
+  // Common categories for e-hailing drivers
+  const incomeCategories = [
+    'Cashback/Incentive',
+    'Bonus from Grab',
+    'Referral Bonus',
+    'Other Income'
+  ];
+  
+  const expenseCategories = [
+    'PUSPAKOM',
+    'Car Insurance (Yearly)',
+    'Car Maintenance',
+    'Car Repair',
+    'Road Tax',
+    'Parking/Tolls',
+    'Phone Bill',
+    'Other Expenses'
+  ];
+  
+  const categories = type === 'income' ? incomeCategories : expenseCategories;
+  
+  const categoryOptions = categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+  
+  const content = `
+    <label>Description</label>
+    <input class="input" type="text" id="financialDescription" placeholder="Enter description">
+    
+    <label>Category</label>
+    <select class="input" id="financialCategory">
+      ${categoryOptions}
+    </select>
+    
+    <label>Amount (RM)</label>
+    <input class="input" type="number" step="0.01" id="financialAmount" placeholder="0.00">
+    
+    <label>Date</label>
+    <input class="input" type="date" id="financialDate" value="${formatDateISO(new Date())}">
+    
+    <div style="display:flex;align-items:center;gap:8px;margin:12px 0">
+      <input type="checkbox" id="financialRecurring">
+      <label for="financialRecurring">Recurring</label>
+    </div>
+    
+    <div id="recurringOptions" style="display:none">
+      <label>Recurring Type</label>
+      <select class="input" id="financialRecurringType">
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+    </div>
+    
+    <button class="btn full" onclick="saveFinancialItem('${type}')">Save</button>
+  `;
+  
+  openFinancialModal(title, content);
+  
+  // Show/hide recurring options based on checkbox
+  document.getElementById('financialRecurring').addEventListener('change', function() {
+    document.getElementById('recurringOptions').style.display = this.checked ? 'block' : 'none';
+  });
+}
+
+function saveFinancialItem(type) {
+  const description = document.getElementById('financialDescription').value;
+  const category = document.getElementById('financialCategory').value;
+  const amount = parseFloat(document.getElementById('financialAmount').value) || 0;
+  const date = document.getElementById('financialDate').value;
+  const recurring = document.getElementById('financialRecurring').checked;
+  const recurringType = recurring ? document.getElementById('financialRecurringType').value : '';
+  
+  if (!description || !category || amount <= 0 || !date) {
+    showNotification('Please fill all required fields', 'error');
+    return;
+  }
+  
+  const newItem = {
+    id: generateId(),
+    type: type,
+    category: category,
+    description: description,
+    amount: amount,
+    date: date,
+    recurring: recurring,
+    recurringType: recurringType
+  };
+  
+  financialData.push(newItem);
+  closeFinancialModal();
+  renderAll();
+  showNotification(`${type === 'income' ? 'Income' : 'Expense'} added successfully`);
+}
+
+function editFinancialItem(id) {
+  const item = financialData.find(i => i.id === id);
+  if (!item) return;
+  
+  const title = item.type === 'income' ? 'Edit Income' : 'Edit Expense';
+  
+  // Common categories for e-hailing drivers
+  const incomeCategories = [
+    'Cashback/Incentive',
+    'Bonus from Grab',
+    'Referral Bonus',
+    'Other Income'
+  ];
+  
+  const expenseCategories = [
+    'PUSPAKOM',
+    'Car Insurance (Yearly)',
+    'Car Maintenance',
+    'Car Repair',
+    'Road Tax',
+    'Parking/Tolls',
+    'Phone Bill',
+    'Other Expenses'
+  ];
+  
+  const categories = item.type === 'income' ? incomeCategories : expenseCategories;
+  
+  const categoryOptions = categories.map(cat => 
+    `<option value="${cat}" ${cat === item.category ? 'selected' : ''}>${cat}</option>`
+  ).join('');
+  
+  const content = `
+    <label>Description</label>
+    <input class="input" type="text" id="financialDescription" value="${item.description}">
+    
+    <label>Category</label>
+    <select class="input" id="financialCategory">
+      ${categoryOptions}
+    </select>
+    
+    <label>Amount (RM)</label>
+    <input class="input" type="number" step="0.01" id="financialAmount" value="${item.amount}">
+    
+    <label>Date</label>
+    <input class="input" type="date" id="financialDate" value="${item.date}">
+    
+    <div style="display:flex;align-items:center;gap:8px;margin:12px 0">
+      <input type="checkbox" id="financialRecurring" ${item.recurring ? 'checked' : ''}>
+      <label for="financialRecurring">Recurring</label>
+    </div>
+    
+    <div id="recurringOptions" style="${item.recurring ? 'block' : 'none'}">
+      <label>Recurring Type</label>
+      <select class="input" id="financialRecurringType">
+        <option value="monthly" ${item.recurringType === 'monthly' ? 'selected' : ''}>Monthly</option>
+        <option value="yearly" ${item.recurringType === 'yearly' ? 'selected' : ''}>Yearly</option>
+      </select>
+    </div>
+    
+    <button class="btn full" onclick="updateFinancialItem('${id}')">Update</button>
+  `;
+  
+  openFinancialModal(title, content);
+  
+  // Show/hide recurring options based on checkbox
+  document.getElementById('financialRecurring').addEventListener('change', function() {
+    document.getElementById('recurringOptions').style.display = this.checked ? 'block' : 'none';
+  });
+}
+
+function updateFinancialItem(id) {
+  const itemIndex = financialData.findIndex(i => i.id === id);
+  if (itemIndex === -1) return;
+  
+  const description = document.getElementById('financialDescription').value;
+  const category = document.getElementById('financialCategory').value;
+  const amount = parseFloat(document.getElementById('financialAmount').value) || 0;
+  const date = document.getElementById('financialDate').value;
+  const recurring = document.getElementById('financialRecurring').checked;
+  const recurringType = recurring ? document.getElementById('financialRecurringType').value : '';
+  
+  if (!description || !category || amount <= 0 || !date) {
+    showNotification('Please fill all required fields', 'error');
+    return;
+  }
+  
+  financialData[itemIndex] = {
+    ...financialData[itemIndex],
+    description,
+    category,
+    amount,
+    date,
+    recurring,
+    recurringType
+  };
+  
+  closeFinancialModal();
+  renderAll();
+  showNotification('Financial item updated successfully');
+}
+
+function deleteFinancialItem(id) {
+  if (!confirm('Are you sure you want to delete this financial item?')) return;
+  
+  financialData = financialData.filter(item => item.id !== id);
+  renderAll();
+  showNotification('Financial item deleted successfully');
+}
+
+function showFinancialSummaryTab(tab) {
+  document.querySelectorAll('#financialPage .tab-row button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`#financialPage .tab-row button[onclick="showFinancialSummaryTab('${tab}')"]`).classList.add('active');
+  
+  document.getElementById('monthlyFinancialSummary').style.display = tab === 'monthly' ? 'block' : 'none';
+  document.getElementById('yearlyFinancialSummary').style.display = tab === 'yearly' ? 'block' : 'none';
+}
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+/* ------------------ Data Change Handlers ------------------ */
+
+/* Tracker -> Earnings */
+function changeDateFromTracker(oldDate, newDate){
+  if(!newDate) return alert('Invalid date');
+  // update tracker entry
+  const t = trackerData.find(x=>x.date===oldDate);
+  if(!t) return;
+  // if newDate already exists in tracker -> warn
+  if(trackerData.some(x=>x.date===newDate && x !== t)) return alert('Date already exists in tracker.');
+  t.date = newDate;
+  // update earnings entry if exists (find by oldDate)
+  const e = earningsData.find(x=>x.date===oldDate);
+  if(e) e.date = newDate;
+  renderAll();
+  showNotification('Date updated successfully');
+}
+
+/* Tracker -> Earnings (job) */
+function changeJobFromTracker(date, val){
+  const num = parseInt(val) || 0;
+  const t = trackerData.find(x=>x.date===date);
+  if(!t) return;
+  t.job = num;
+  // sync to earnings
+  const e = ensureEarningFor(date);
+  e.job = num;
+  renderAll();
+  showNotification('Job count updated');
+}
+
+/* Earning -> Tracker date change */
+function changeDateFromEarning(oldDate, newDate){
+  if(!newDate) return alert('Invalid date');
+  const e = earningsData.find(x=>x.date===oldDate);
+  if(!e) return;
+  // check existence conflict
+  if(earningsData.some(x=>x.date===newDate && x !== e)) return alert('Date already exists.');
+  e.date = newDate;
+  // find tracker entry and update
+  const t = trackerData.find(x=>x.date===oldDate);
+  if(t) t.date = newDate;
+  else {
+    // if tracker missing, create it
+    trackerData.push({date:newDate, job: e.job||0, jobTarget:0, expanded:false});
+  }
+  renderAll();
+  showNotification('Date updated successfully');
+}
+
+/* Earning -> Tracker job change */
+function changeJobFromEarning(date, val){
+  const num = parseInt(val) || 0;
+  const e = earningsData.find(x=>x.date===date);
+  if(!e) return;
+  e.job = num;
+  const t = ensureTrackerFor(date);
+  t.job = num;
+  renderAll();
+  showNotification('Job count updated');
+}
+
+/* Earning other numeric fields */
+function changeEarningField(date, field, val){
+  const e = earningsData.find(x=>x.date===date);
+  if(!e) return;
+  e[field] = parseFloat(val) || 0;
+  // if changes affect float/transfer summary, update
+  renderAll();
+  showNotification(`${field.charAt(0).toUpperCase() + field.slice(1)} updated`);
+}
+
+/* Delete a day both sides */
+function deleteDay(date){
+  if(!confirm('Delete this date (both tracker & earnings)?')) return;
+  trackerData = trackerData.filter(t=>t.date!==date);
+  earningsData = earningsData.filter(e=>e.date!==date);
+  renderAll();
+  showNotification('Day deleted successfully');
+}
+
+/* Expand/collapse by date (both) */
+function toggleExpandByDate(date){
+  const t = trackerData.find(x=>x.date===date);
+  const e = earningsData.find(x=>x.date===date);
+  if(t) t.expanded = !t.expanded;
+  if(e) e.expanded = t ? t.expanded : !e.expanded;
+  renderAll();
+}
+
+/* Add day */
+document.getElementById('addDayBtn').onclick = ()=>{
+  const today = formatDateISO(new Date());
+  // if exists, just open it
+  if(trackerData.some(t=>t.date===today)){
+    const t = trackerData.find(t=>t.date===today);
+    t.expanded = true;
+    const e = ensureEarningFor(today); e.expanded = true;
+    renderAll(); return;
+  }
+  trackerData.push({date: today, job:0, jobTarget:0, expanded:true});
+  ensureEarningFor(today).expanded = true;
+  renderAll();
+  showNotification('New day added successfully');
+};
+
+/* Update job counts from tracker (one-button sync) */
+document.getElementById('updateFromTrackerBtn').onclick = ()=>{
+  // For each tracker date, ensure earnings has job = tracker.job
+  trackerData.forEach(t=>{
+    const e = ensureEarningFor(t.date);
+    e.job = t.job;
+  });
+  renderAll();
+  showNotification('Job counts synced from tracker');
+};
+
+/* ------------------ Data Management ------------------ */
+
+function backupData(){
+  const data = {
+    trackerData,
+    earningsData,
+    targetData,
+    floatData,
+    financialData,
+    appSettings,
+    backupDate: new Date().toISOString()
+  };
+  
+  const dataStr = JSON.stringify(data, null, 2);
+  const blob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `grab-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showNotification('Backup created successfully');
+}
+
+function restoreData(){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = event => {
+      try {
+        const data = JSON.parse(event.target.result);
+        
+        if(data.trackerData) trackerData = data.trackerData;
+        if(data.earningsData) earningsData = data.earningsData;
+        if(data.targetData) targetData = data.targetData;
+        if(data.floatData) floatData = data.floatData;
+        if(data.financialData) financialData = data.financialData;
+        if(data.appSettings) appSettings = data.appSettings;
+        
+        renderAll();
+        showNotification('Data restored successfully');
+      } catch(err) {
+        showNotification('Error restoring backup file', 'error');
+        console.error(err);
+      }
+    };
+    reader.readAsText(file);
+  };
+  
+  input.click();
+}
+
+/* Reset with backup query */
+document.getElementById('resetTrackerBtn').onclick = ()=>{
+  if(trackerData.length===0 && earningsData.length===0){ alert('Already empty'); return; }
+  if(confirm('Do you want to BACKUP current data before reset? (OK = backup, Cancel = no backup)')){
+    backupData();
+  }
+  if(confirm('Are you sure you want to RESET all tracker & earnings data? This cannot be undone.')){
+    trackerData = []; earningsData = []; targetData = {}; floatData = {float:0}; financialData = [];
+    renderAll(); 
+    showNotification('Reset complete');
+  }
+};
+
+// Connect backup/restore buttons
+document.getElementById('backupFromTracker').onclick = backupData;
+document.getElementById('restoreFromTracker').onclick = restoreData;
+
+/* ------------------ UI Navigation ------------------ */
+
+// Navigation
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const tab = item.getAttribute('data-tab');
+    
+    // Update active nav item
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    
+    // Show selected page
+    document.querySelectorAll('.page').forEach(page => {
+      page.style.display = 'none';
+    });
+    document.getElementById(tab).style.display = 'block';
+  });
+});
+
+// Clock update
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true 
+  });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Initialize
+renderAll();
+</script>
+</body>
+</html>
